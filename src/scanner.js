@@ -1,7 +1,11 @@
 import { readFile, access, readdir, stat } from 'node:fs/promises';
 import { constants } from 'node:fs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { join, dirname } from 'node:path';
 import glob from 'fast-glob';
+
+const execFileAsync = promisify(execFile);
 
 const IGNORE_PATTERNS = ['**/node_modules/**', '**/.git/**'];
 
@@ -123,6 +127,34 @@ export async function* scan(rootDir) {
     for (const absolutePath of outputPaths) {
       const size = await getDirSize(absolutePath);
       yield { absolutePath, size };
+    }
+  }
+}
+
+async function getDirSizeFast(dirPath) {
+  try {
+    const { stdout } = await execFileAsync('du', ['-sk', dirPath]);
+    const kb = parseInt(stdout.split('\t')[0], 10);
+    return kb * 1024;
+  } catch {
+    return getDirSize(dirPath);
+  }
+}
+
+export async function* scanGitDirs(rootDir, thresholdBytes) {
+  const stream = glob.stream('**/.git', {
+    cwd: rootDir,
+    ignore: ['**/node_modules/**'],
+    followSymbolicLinks: false,
+    onlyDirectories: true,
+    dot: true,
+  });
+
+  for await (const rel of stream) {
+    const absolutePath = join(rootDir, String(rel));
+    const size = await getDirSizeFast(absolutePath);
+    if (size >= thresholdBytes) {
+      yield { absolutePath, size, type: 'gc-advisory' };
     }
   }
 }
