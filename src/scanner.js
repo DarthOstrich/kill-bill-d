@@ -6,6 +6,7 @@ import glob from 'fast-glob';
 const IGNORE_PATTERNS = ['**/node_modules/**', '**/.git/**'];
 
 const COMMON_OUTPUT_NAMES = ['build', 'www', 'dist', '.next'];
+const CACHE_DIR_NAMES = ['.angular', '.nuxt', '.svelte-kit', '.turbo', '.parcel-cache'];
 const NEXT_CONFIGS = ['next.config.js', 'next.config.mjs', 'next.config.ts'];
 const VITE_CONFIGS = ['vite.config.js', 'vite.config.ts', 'vite.config.mjs'];
 
@@ -76,6 +77,11 @@ export async function detectOutputPaths(projectDir) {
     for (const name of COMMON_OUTPUT_NAMES) {
       candidates.push(join(projectDir, name));
     }
+  }
+
+  // always check for framework cache directories
+  for (const name of CACHE_DIR_NAMES) {
+    candidates.push(join(projectDir, name));
   }
 
   // filter to paths that exist on disk and deduplicate
